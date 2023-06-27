@@ -4,22 +4,39 @@ const CryptoJS = require('crypto-js')
 const jwt = require('jsonwebtoken')
 const verifyExistingUser = require('../middleware/verifyUser')
 const { verifyTokenAndAuthorization } = require('../middleware/verifyToken')
+const cloudinary = require('cloudinary').v2
+
 
 
 // REGISTER
 
 router.post('/register', verifyExistingUser, async (req, res) => {
-    const newUser = new User({
-        username: req.body.username,
-        email: req.body.email,
-        password: CryptoJS.AES.encrypt(req.body.password, process.env.PASS_SEC).toString(),
-    })
-    console.log(newUser)
-
+    
     try {
+        const uploadCloudinary = await cloudinary.uploader.upload(req.body.img, {public_id: 'newUpload', folder: 'online_shop/users'});
+        console.log(uploadCloudinary)
+    
+        const newUser = new User({
+            username: req.body.username,
+            email: req.body.email,
+            img: uploadCloudinary.secure_url,
+            password: CryptoJS.AES.encrypt(req.body.password, process.env.PASS_SEC).toString(),
+        })
+        console.log(newUser)
         const savedUser = await newUser.save()
+
+        const updateCloudinary = await cloudinary.uploader.rename(uploadCloudinary.public_id, 'online_shop/users/' + savedUser._id)
+        console.log(updateCloudinary)
+
+        const updatedUser = await User.findByIdAndUpdate(
+            savedUser._id, 
+            { $set: { img: updateCloudinary.secure_url } },
+            { new: true}
+        )
+        console.log(updatedUser)
+
         // console.log(savedUser)
-        res.status(201).json({status: 'success', user: savedUser})
+        res.status(201).json({status: 'success', user: updatedUser})
     } catch (err) {
         res.status(500).json({status: 'error', err})
     }
@@ -43,7 +60,7 @@ router.post('/login', async (req, res) => {
                 isAdmin: user.isAdmin,
             }, 
             process.env.JWT_SEC,
-            {expiresIn:'30s'}
+            {expiresIn:'15min'}
         )
         
         const refreshToken = jwt.sign(
@@ -52,7 +69,7 @@ router.post('/login', async (req, res) => {
                 isAdmin: user.isAdmin,
             }, 
             process.env.JWT_REFRESH_SEC,
-            {expiresIn:'15m'}
+            {expiresIn:'7d'}
         )
         // SAVE REFRESH TOKEN TO DB
         await User.findByIdAndUpdate(user._id, { $set: { refreshToken: refreshToken } })
@@ -102,7 +119,7 @@ router.post('/refresh-token', async (req, res) => {
                 isAdmin: user.isAdmin,
             }, 
             process.env.JWT_SEC,
-            {expiresIn:'1m'}
+            {expiresIn:'15m'}
         )
         res.status(200).json({accessToken})
     })

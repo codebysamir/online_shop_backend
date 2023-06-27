@@ -23,6 +23,10 @@ const ProductSchema = new mongoose.Schema(
         color: {
             type: Object,
         },
+        inStock: {
+            type: Boolean,
+            default: true,
+        }
     },
     { 
         timestamps: true

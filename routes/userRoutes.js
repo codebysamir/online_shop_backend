@@ -3,6 +3,7 @@ const { verifyToken, verifyTokenAndAuthorization, verifyTokenAndAdmin } = requir
 const User = require('../mongodb/models/User')
 const CryptoJS = require('crypto-js')
 const router = require('express').Router()
+const cloudinary = require('cloudinary').v2
 
 
 
@@ -21,9 +22,24 @@ router.put('/:id', verifyTokenAndAuthorization, async (req, res) => {
         const duplicateEmail = await User.findOne({ email: req.body?.email}).collation({locale: 'de', strength: 2})
         if (duplicateEmail) return res.status(409).json({isDuplicate: true, message: 'E-Mail exists already.'})
 
+
+        let updateCloudinary
+        if (req.body?.img) {
+            const findCloudinaryUser = await cloudinary.search.expression(req.params.id).execute()
+            console.log('Found image: ', findCloudinaryUser)
+            if (findCloudinaryUser?.total_count === 1) {
+                updateCloudinary = await cloudinary.uploader.upload(req.body.img, {public_id: findCloudinaryUser.resources[0].public_id });
+                console.log('Excisting image: ' , updateCloudinary)
+            } else {
+                updateCloudinary = await cloudinary.uploader.upload(req.body.img, {public_id: req.params.id, folder: 'online_shop/users'});
+                console.log('None excisting image: ' , updateCloudinary)
+            }
+        }
+
+
         const updatedUser = await User.findByIdAndUpdate(
             req.params.id, 
-            { $set: req.body },
+            { $set: updateCloudinary ? { ...req.body, img: updateCloudinary.secure_url } : req.body },
             { new: true}
         )
         res.status(200).json(updatedUser)
@@ -67,7 +83,7 @@ router.get('/find/:id', verifyTokenAndAdmin, async (req, res) => {
 router.get('/', verifyTokenAndAdmin, async (req, res) => {
     const query = req.query.newest
     try {
-        const users = query ? await User.find().limit(1) : await User.find()
+        const users = query ? await User.find().sort({createdAt: -1}).limit(5) : await User.find()
         const userDatas = users.map(user => {
         const { password, ...others} = user._doc
         return others

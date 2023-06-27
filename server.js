@@ -23,7 +23,7 @@ app.use((req, res, next) => {
     if (req.originalUrl === '/api/stripe/webhook') {
         next();
     } else {
-        express.json()(req, res, next);
+        express.json({ limit: '50mb'})(req, res, next);
     }
 })
 app.use(cookieParser())

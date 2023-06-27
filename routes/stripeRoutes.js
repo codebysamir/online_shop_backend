@@ -28,7 +28,8 @@ router.post('/create-checkout', verifyToken, async (req, res) => {
                         currency: "chf",
                         product_data: {
                             name: item.name,
-                            images: [item.img]
+                            images: [item.img],
+                            description: `Size: ${item.size}, Color: ${Object.keys(item.color)[0]}`
                         }
                     },
                     quantity: item.quantity
