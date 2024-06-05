@@ -49,7 +49,7 @@ router.post('/create-checkout', verifyToken, async (req, res) => {
 })
 
 
-const endpointSecret = 'whsec_721c46e888afe1a6b31c1275f8502117b116ea4da36a28068626e52fdb3ac741'
+const endpointSecret = process.env.STRIPE_ENDPOINT_SECRET
 
 const fulfillOrder = (lineItems) => {
     // TODO: fill me in
